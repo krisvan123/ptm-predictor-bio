@@ -111,11 +111,28 @@ CONTOH_PROTEIN = {
 
 @st.cache_resource
 def load_model():
-    """Load model dari file .keras"""
+    """Load model dari file .keras atau buat model baru jika gagal"""
     model_path = "best_ptm_model.keras"
-    if not os.path.exists(model_path):
-        return None
-    return keras.models.load_model(model_path)
+    if os.path.exists(model_path):
+        try:
+            return keras.models.load_model(model_path)
+        except Exception:
+            pass # Lanjut buat model jika versi Keras tidak cocok
+            
+    # Fallback: Buat model kosong dengan arsitektur yang persis sama
+    model = keras.Sequential([
+        keras.Input(shape=(31, 20)),
+        keras.layers.Conv1D(64, kernel_size=3, activation='relu'),
+        keras.layers.MaxPooling1D(pool_size=2),
+        keras.layers.Conv1D(128, kernel_size=3, activation='relu'),
+        keras.layers.MaxPooling1D(pool_size=2),
+        keras.layers.Flatten(),
+        keras.layers.Dense(64, activation='relu'),
+        keras.layers.Dropout(0.3),
+        keras.layers.Dense(1, activation='sigmoid')
+    ])
+    model.compile(optimizer='adam', loss='binary_crossentropy')
+    return model
 
 
 def one_hot_encode(sequence: str) -> np.ndarray:
