@@ -13,11 +13,57 @@ import os
 # KONFIGURASI HALAMAN
 # ============================================================
 st.set_page_config(
-    page_title="PTM Predictor — Kelompok 5",
-    page_icon="🧬",
+    page_title="PTM Predictor",
     layout="wide",
     initial_sidebar_state="expanded"
 )
+
+CUSTOM_CSS = """
+<style>
+    /* Elegant Mocha Theme for Streamlit */
+    :root {
+        --primary-color: #A6907C;
+        --bg-color: #FDFBF7;
+        --text-color: #3B352E;
+        --sidebar-bg: #FFFFFF;
+    }
+    .stApp {
+        background-color: var(--bg-color) !important;
+        background-image: radial-gradient(at 0% 0%, rgba(166, 144, 124, 0.05) 0px, transparent 50%), radial-gradient(at 100% 100%, rgba(166, 144, 124, 0.05) 0px, transparent 50%);
+        color: var(--text-color) !important;
+        font-family: 'Inter', -apple-system, sans-serif !important;
+    }
+    [data-testid="stSidebar"] {
+        background-color: var(--sidebar-bg) !important;
+        border-right: 1px solid #E8E3DD;
+    }
+    h1, h2, h3, h4, h5, h6, p, label, span {
+        color: var(--text-color) !important;
+    }
+    .stButton button {
+        background-color: var(--primary-color) !important;
+        color: white !important;
+        border: none !important;
+        border-radius: 0.5rem !important;
+        box-shadow: 0 4px 12px rgba(166, 144, 124, 0.2) !important;
+        transition: all 0.2s;
+    }
+    .stButton button:hover {
+        background-color: #8D7B68 !important;
+        transform: translateY(-2px);
+    }
+    [data-testid="stMetricValue"] {
+        color: var(--primary-color) !important;
+    }
+    /* Card-like wrappers */
+    div[data-testid="stVerticalBlock"] > div {
+        background: rgba(255, 255, 255, 0.5);
+        border-radius: 0.75rem;
+        padding: 5px;
+    }
+</style>
+"""
+st.markdown(CUSTOM_CSS, unsafe_allow_html=True)
 
 # ============================================================
 # KONSTANTA
@@ -120,13 +166,13 @@ def render_sequence_highlight(sequence: str, ptm_positions: set):
 # SIDEBAR
 # ============================================================
 with st.sidebar:
-    st.markdown("## 🧬 PTM Predictor")
+    st.markdown("## PTM Predictor")
     st.markdown("**Kelompok 5 — Bioinformatika**")
     st.divider()
 
     page = st.radio(
         "Navigasi",
-        ["🔬 Prediksi PTM", "📊 Evaluasi Model", "📖 Tentang Model"],
+        ["Prediksi PTM", "Evaluasi Model", "Tentang Model"],
         label_visibility="collapsed"
     )
 
@@ -148,8 +194,8 @@ model = load_model()
 # ============================================================
 # HALAMAN 1: PREDIKSI PTM
 # ============================================================
-if page == "🔬 Prediksi PTM":
-    st.title("🔬 Prediksi Situs PTM")
+if page == "Prediksi PTM":
+    st.title("Prediksi Situs PTM")
     st.markdown("Masukkan sekuens protein untuk memprediksi situs **fosforilasi pada Serine (S)** menggunakan model 1D-CNN.")
 
     if model is None:
@@ -162,7 +208,7 @@ if page == "🔬 Prediksi PTM":
     selected_example = None
     for idx, (nama, (seq)) in enumerate(CONTOH_PROTEIN.items()):
         with cols[idx]:
-            if st.button(f"🧫 {nama.split('(')[0].strip()}", use_container_width=True):
+            if st.button(f"{nama.split('(')[0].strip()}", use_container_width=True):
                 selected_example = seq
 
     st.divider()
@@ -179,7 +225,7 @@ if page == "🔬 Prediksi PTM":
 
     col1, col2 = st.columns([1, 4])
     with col1:
-        predict_btn = st.button("🚀 Prediksi", type="primary", use_container_width=True)
+        predict_btn = st.button("Jalankan Analisis", type="primary", use_container_width=True)
 
     if predict_btn and sequence_input.strip():
         seq = sequence_input.strip().upper()
@@ -250,8 +296,8 @@ if page == "🔬 Prediksi PTM":
 # ============================================================
 # HALAMAN 2: EVALUASI MODEL
 # ============================================================
-elif page == "📊 Evaluasi Model":
-    st.title("📊 Evaluasi Model 1D-CNN")
+elif page == "Evaluasi Model":
+    st.title("Evaluasi Model 1D-CNN")
     st.markdown("Hasil evaluasi model pada **test set** (50.000 sampel, 20% dari total data).")
 
     # Metrik hasil (hardcoded dari hasil training)
@@ -321,8 +367,8 @@ elif page == "📊 Evaluasi Model":
 # ============================================================
 # HALAMAN 3: TENTANG MODEL
 # ============================================================
-elif page == "📖 Tentang Model":
-    st.title("📖 Tentang Model")
+elif page == "Tentang Model":
+    st.title("Tentang Model")
 
     st.markdown("""
     ## Post-Translational Modification (PTM)
