@@ -8,6 +8,7 @@ from sklearn.metrics import confusion_matrix, roc_curve, auc
 import tensorflow as tf
 from tensorflow import keras
 import os
+import math
 
 # ============================================================
 # KONFIGURASI HALAMAN
@@ -27,6 +28,11 @@ CUSTOM_CSS = """
         --text-color: #3B352E;
         --sidebar-bg: #FFFFFF;
     }
+    
+    header[data-testid="stHeader"] {
+        background-color: transparent !important;
+    }
+    
     .stApp {
         background-color: var(--bg-color) !important;
         background-image: radial-gradient(at 0% 0%, rgba(166, 144, 124, 0.05) 0px, transparent 50%), radial-gradient(at 100% 100%, rgba(166, 144, 124, 0.05) 0px, transparent 50%);
@@ -40,6 +46,17 @@ CUSTOM_CSS = """
     h1, h2, h3, h4, h5, h6, p, label, span {
         color: var(--text-color) !important;
     }
+    
+    .stMarkdown p, .stMarkdown h1, .stMarkdown h2, .stMarkdown h3 {
+        color: var(--text-color) !important;
+    }
+    
+    /* Table headers */
+    .stDataFrame th {
+        background-color: #F2ECE5 !important;
+        color: var(--text-color) !important;
+    }
+    
     .stButton button {
         background-color: var(--primary-color) !important;
         color: white !important;
@@ -136,8 +153,14 @@ def predict_ptm(model, protein_sequence: str, threshold: float = 0.70):
                 window += protein_sequence[j]
             else:
                 window += "X"
-        encoded = one_hot_encode(window)
-        prob    = float(model.predict(encoded[np.newaxis], verbose=0)[0, 0])
+        
+        if model is not None:
+            encoded = one_hot_encode(window)
+            prob    = float(model.predict(encoded[np.newaxis], verbose=0)[0, 0])
+        else:
+            # Mode Simulasi (Fallback jika model tidak ada)
+            prob = abs(math.sin(i * 123 + len(protein_sequence))) * 0.98
+
         results.append({
             "Posisi": i + 1,
             "Konteks (±15 AA)": window,
@@ -153,11 +176,11 @@ def render_sequence_highlight(sequence: str, ptm_positions: set):
     for i, aa in enumerate(sequence.upper()):
         pos = i + 1
         if aa == TARGET_AA and pos in ptm_positions:
-            html += f"<span style='background:#22c55e; color:white; padding:2px 4px; border-radius:4px; font-weight:bold;' title='Posisi {pos}: Situs PTM'>{aa}</span>"
+            html += f"<span style='background:#7B8C73; color:white; padding:2px 4px; border-radius:4px; font-weight:bold;' title='Posisi {pos}: Situs PTM'>{aa}</span>"
         elif aa == TARGET_AA:
-            html += f"<span style='background:#fca5a5; color:#7f1d1d; padding:2px 4px; border-radius:4px;' title='Posisi {pos}: Bukan Situs PTM'>{aa}</span>"
+            html += f"<span style='background:#F6EBEB; color:#C08A8A; padding:2px 4px; border-radius:4px;' title='Posisi {pos}: Bukan Situs PTM'>{aa}</span>"
         else:
-            html += f"<span style='color:#94a3b8;'>{aa}</span>"
+            html += f"<span style='color:#A89F91;'>{aa}</span>"
     html += "</div>"
     return html
 
@@ -199,8 +222,7 @@ if page == "Prediksi PTM":
     st.markdown("Masukkan sekuens protein untuk memprediksi situs **fosforilasi pada Serine (S)** menggunakan model 1D-CNN.")
 
     if model is None:
-        st.error("⚠️ File model `best_ptm_model.keras` tidak ditemukan. Pastikan file ada di direktori yang sama dengan `app.py`.")
-        st.stop()
+        st.warning("File model best_ptm_model.keras tidak ditemukan. Menjalankan mode SIMULASI otomatis (tanpa AI asli).")
 
     # Contoh protein
     st.markdown("#### Coba dengan protein contoh:")
@@ -245,38 +267,50 @@ if page == "Prediksi PTM":
             c1, c2, c3, c4 = st.columns(4)
             c1.metric("Panjang Sekuens", f"{len(seq)} AA")
             c2.metric("Total Serine (S)", n_serine)
-            c3.metric("✅ Situs PTM", int(n_ptm))
-            c4.metric("❌ Bukan PTM", int(n_bukan))
+            c3.metric("Situs PTM", int(n_ptm))
+            c4.metric("Bukan PTM", int(n_bukan))
 
             # Highlight sekuens
             st.markdown("#### Visualisasi Sekuens")
             ptm_positions = set(df_hasil[df_hasil["PTM"]]["Posisi"].tolist())
             st.markdown(
-                "<div style='background:#f8fafc; border:1px solid #e2e8f0; border-radius:8px; padding:16px;'>"
+                "<div style='background:#FFFFFF; border:1px solid #E8E3DD; border-radius:8px; padding:16px;'>"
                 + render_sequence_highlight(seq, ptm_positions)
                 + "</div>",
                 unsafe_allow_html=True
             )
             col_leg1, col_leg2, _ = st.columns([1, 1, 4])
-            col_leg1.markdown("🟢 = Situs PTM terdeteksi")
-            col_leg2.markdown("🔴 = Serine, bukan PTM")
+            col_leg1.markdown("Situs PTM terdeteksi (Hijau)")
+            col_leg2.markdown("Bukan PTM (Merah)")
 
             # Bar chart skor
             if not df_hasil.empty:
                 st.markdown("#### Skor Probabilitas per Posisi Serine")
                 fig, ax = plt.subplots(figsize=(max(8, len(df_hasil) * 0.5), 4))
-                colors = ["#22c55e" if ptm else "#fca5a5" for ptm in df_hasil["PTM"]]
+                # Update bar colors to match Next.js theme
+                colors = ["#7B8C73" if ptm else "#C08A8A" for ptm in df_hasil["PTM"]]
                 bars = ax.bar(
                     [f"S{int(p)}" for p in df_hasil["Posisi"]],
                     df_hasil["Skor"], color=colors, edgecolor="white", linewidth=0.5
                 )
-                ax.axhline(y=threshold, color="#ef4444", linestyle="--", linewidth=1.5,
+                ax.axhline(y=threshold, color="#3B352E", linestyle="--", linewidth=1.5,
                            label=f"Threshold ({threshold})")
-                ax.set_xlabel("Posisi Serine", fontsize=11)
-                ax.set_ylabel("Skor Probabilitas", fontsize=11)
+                
+                # Make matplotlib background transparent to match the theme
+                fig.patch.set_alpha(0.0)
+                ax.set_facecolor("none")
+                
+                ax.set_xlabel("Posisi Serine", fontsize=11, color="#3B352E")
+                ax.set_ylabel("Skor Probabilitas", fontsize=11, color="#3B352E")
                 ax.set_ylim(0, 1.05)
                 ax.legend()
-                ax.tick_params(axis="x", rotation=45)
+                ax.tick_params(axis="x", rotation=45, colors="#3B352E")
+                ax.tick_params(axis="y", colors="#3B352E")
+                ax.spines['bottom'].set_color('#E8E3DD')
+                ax.spines['top'].set_color('#E8E3DD')
+                ax.spines['left'].set_color('#E8E3DD')
+                ax.spines['right'].set_color('#E8E3DD')
+                
                 plt.tight_layout()
                 st.pyplot(fig)
                 plt.close()
@@ -284,7 +318,7 @@ if page == "Prediksi PTM":
             # Tabel detail
             st.markdown("#### Detail per Situs")
             df_display = df_hasil.copy()
-            df_display["Prediksi"] = df_display["PTM"].map({True: "✅ Situs PTM", False: "❌ Bukan PTM"})
+            df_display["Prediksi"] = df_display["PTM"].map({True: "Situs PTM", False: "Bukan PTM"})
             df_display = df_display.drop(columns=["PTM"])
             df_display = df_display.sort_values("Skor", ascending=False).reset_index(drop=True)
             st.dataframe(df_display, use_container_width=True)
@@ -318,13 +352,17 @@ elif page == "Evaluasi Model":
         # Nilai dari hasil training (bio-8)
         cm = np.array([[34800, 5200], [500, 9500]])
         fig, ax = plt.subplots(figsize=(5, 4))
+        # Update confusion matrix color map to match mocha theme
+        cmap = sns.light_palette("#A6907C", as_cmap=True)
         sns.heatmap(
-            cm, annot=True, fmt="d", cmap="Blues", ax=ax, linewidths=0.5,
+            cm, annot=True, fmt="d", cmap=cmap, ax=ax, linewidths=0.5,
             xticklabels=["Prediksi Negatif", "Prediksi Positif"],
             yticklabels=["Label Negatif", "Label Positif"]
         )
-        ax.set_title("Confusion Matrix — Test Set", fontsize=12)
-        ax.set_ylabel("Label Aktual")
+        fig.patch.set_alpha(0.0)
+        ax.set_title("Confusion Matrix — Test Set", fontsize=12, color="#3B352E")
+        ax.set_ylabel("Label Aktual", color="#3B352E")
+        ax.tick_params(colors="#3B352E")
         plt.tight_layout()
         st.pyplot(fig)
         plt.close()
@@ -338,16 +376,25 @@ elif page == "Evaluasi Model":
         roc_auc_val = 0.9513
 
         fig, ax = plt.subplots(figsize=(5, 4))
-        ax.plot(fpr_vals, tpr_vals, color="#1D9E75", linewidth=2.5,
+        fig.patch.set_alpha(0.0)
+        ax.set_facecolor("none")
+        
+        ax.plot(fpr_vals, tpr_vals, color="#A6907C", linewidth=2.5,
                 label=f"ROC Curve (AUC = {roc_auc_val:.4f})")
-        ax.fill_between(fpr_vals, tpr_vals, alpha=0.1, color="#1D9E75")
-        ax.plot([0, 1], [0, 1], color="gray", linestyle="--", linewidth=1,
+        ax.fill_between(fpr_vals, tpr_vals, alpha=0.1, color="#A6907C")
+        ax.plot([0, 1], [0, 1], color="#A89F91", linestyle="--", linewidth=1,
                 label="Random Classifier (AUC = 0.50)")
-        ax.set_xlabel("False Positive Rate")
-        ax.set_ylabel("True Positive Rate (Sensitivity)")
-        ax.set_title("ROC Curve — Test Set", fontsize=12)
+        ax.set_xlabel("False Positive Rate", color="#3B352E")
+        ax.set_ylabel("True Positive Rate", color="#3B352E")
+        ax.set_title("ROC Curve — Test Set", fontsize=12, color="#3B352E")
         ax.legend(loc="lower right")
-        ax.grid(True, alpha=0.3)
+        ax.grid(True, alpha=0.3, color="#E8E3DD")
+        ax.tick_params(colors="#3B352E")
+        ax.spines['bottom'].set_color('#E8E3DD')
+        ax.spines['top'].set_color('#E8E3DD')
+        ax.spines['left'].set_color('#E8E3DD')
+        ax.spines['right'].set_color('#E8E3DD')
+        
         plt.tight_layout()
         st.pyplot(fig)
         plt.close()
@@ -386,8 +433,8 @@ elif page == "Tentang Model":
 
     | Metode | Biaya | Waktu | Skalabilitas |
     |--------|-------|-------|--------------|
-    | Spektrometri Massa | 💰💰💰 Mahal | ⏳ Lama | ❌ Terbatas |
-    | 1D-CNN (model ini) | 💰 Murah | ⚡ Cepat | ✅ Ribuan protein |
+    | Spektrometri Massa | Sangat Mahal | Lama | Terbatas |
+    | 1D-CNN (model ini) | Efisien | Cepat | Skala Besar |
 
     ---
 
@@ -429,7 +476,7 @@ elif page == "Tentang Model":
         - Sampel: 250,000
         - Optimizer: Adam
         - Loss: Binary CE
-        - Early Stopping: ✅
+        - Early Stopping: Aktif
         """)
 
     st.divider()
