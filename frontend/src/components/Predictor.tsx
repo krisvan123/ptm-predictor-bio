@@ -186,7 +186,7 @@ export default function Predictor({ threshold }: { threshold: number }) {
 
                 {/* Bars */}
                 {results.map((r, idx) => (
-                  <div key={idx} style={{ flex: 1, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "flex-end", height: "100%", zIndex: 1, group: "bar" }} title={`S${r.posisi}: ${r.skor.toFixed(4)}`}>
+                  <div key={idx} style={{ flex: 1, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "flex-end", height: "100%", zIndex: 1 }} title={`S${r.posisi}: ${r.skor.toFixed(4)}`}>
                     <div 
                       style={{ 
                         width: "100%", 
